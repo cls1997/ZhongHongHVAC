@@ -1,0 +1,10 @@
+{
+  "domain": "zhong_hong_reborn",
+  "name": "ZhongHong",
+  "version": "1.1.0",
+  "codeowners": ["@cls1997"],
+  "documentation": "https://www.home-assistant.io/integrations/zhong_hong",
+  "issue_tracker": "https://github.com/cls1997/ZhongHongHVAC/issues",
+  "iot_class": "local_push",
+  "loggers": ["zhong_hong_hvac"]
+}
