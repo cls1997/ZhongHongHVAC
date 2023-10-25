@@ -1,26 +1,120 @@
 """Support for ZhongHong HVAC Controller."""
+from __future__ import annotations
+
 import logging
 from typing import Any
 
-from .hvac import HVAC as ZhongHongHVAC
-from .const import (
-   MODE_TO_STATE,
-   SIGNAL_DEVICE_ADDED 
-)
-
-from homeassistant.const import ATTR_TEMPERATURE
+import voluptuous as vol
+from zhong_hong_hvac.hub import ZhongHongGateway
+from zhong_hong_hvac.hvac import HVAC as ZhongHongHVAC
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
-    HVACMode,
+    PLATFORM_SCHEMA,
     ClimateEntity,
     ClimateEntityFeature,
-    UnitOfTemperature
+    HVACMode,
 )
-
-from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    CONF_HOST,
+    CONF_PORT,
+    EVENT_HOMEASSISTANT_STOP,
+    UnitOfTemperature,
+)
+from homeassistant.core import HomeAssistant
+import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
+
+CONF_GATEWAY_ADDRRESS = "gateway_address"
+
+DEFAULT_PORT = 9999
+DEFAULT_GATEWAY_ADDRRESS = 1
+
+SIGNAL_DEVICE_ADDED = "zhong_hong_device_added"
+SIGNAL_ZHONG_HONG_HUB_START = "zhong_hong_hub_start"
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_HOST): cv.string,
+        vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+        vol.Optional(
+            CONF_GATEWAY_ADDRRESS, default=DEFAULT_GATEWAY_ADDRRESS
+        ): cv.positive_int,
+    }
+)
+
+ZHONG_HONG_MODE_COOL = "cool"
+ZHONG_HONG_MODE_HEAT = "heat"
+ZHONG_HONG_MODE_DRY = "dry"
+ZHONG_HONG_MODE_FAN_ONLY = "fan_only"
+
+
+MODE_TO_STATE = {
+    ZHONG_HONG_MODE_COOL: HVACMode.COOL,
+    ZHONG_HONG_MODE_HEAT: HVACMode.HEAT,
+    ZHONG_HONG_MODE_DRY: HVACMode.DRY,
+    ZHONG_HONG_MODE_FAN_ONLY: HVACMode.FAN_ONLY,
+}
+
+
+def setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
+    """Set up the ZhongHong HVAC platform."""
+
+    host = config.get(CONF_HOST)
+    port = config.get(CONF_PORT)
+    gw_addr = config.get(CONF_GATEWAY_ADDRRESS)
+    hub = ZhongHongGateway(host, port, gw_addr)
+    devices = [
+        ZhongHongClimate(hub, addr_out, addr_in)
+        for (addr_out, addr_in) in hub.discovery_ac()
+    ]
+
+    _LOGGER.debug("We got %s zhong_hong climate devices", len(devices))
+
+    hub_is_initialized = False
+
+    def _start_hub():
+        """Start the hub socket and query status of all devices."""
+        hub.start_listen()
+        hub.query_all_status()
+
+    async def startup():
+        """Start hub socket after all climate entity is set up."""
+        nonlocal hub_is_initialized
+        if not all(device.is_initialized for device in devices):
+            return
+
+        if hub_is_initialized:
+            return
+
+        _LOGGER.debug("zhong_hong hub start listen event")
+        await hass.async_add_executor_job(_start_hub)
+        hub_is_initialized = True
+
+    async_dispatcher_connect(hass, SIGNAL_DEVICE_ADDED, startup)
+
+    # add devices after SIGNAL_DEVICE_SETTED_UP event is listened
+    add_entities(devices)
+
+    def stop_listen(event):
+        """Stop ZhongHongHub socket."""
+        hub.stop_listen()
+
+    hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP, stop_listen)
+
 
 class ZhongHongClimate(ClimateEntity):
     """Representation of a ZhongHong controller support HVAC."""
