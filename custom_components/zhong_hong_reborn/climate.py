@@ -5,8 +5,8 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from zhong_hong_hvac.hub import ZhongHongGateway
-from zhong_hong_hvac.hvac import HVAC as ZhongHongHVAC
+from .hub import ZhongHongGateway
+from .hvac import HVAC as ZhongHongHVAC
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
