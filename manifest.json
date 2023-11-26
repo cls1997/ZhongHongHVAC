@@ -6,5 +6,6 @@
   "documentation": "https://www.home-assistant.io/integrations/zhong_hong",
   "issue_tracker": "https://github.com/cls1997/ZhongHongHVAC/issues",
   "iot_class": "local_push",
-  "loggers": ["zhong_hong_reborn"]
+  "loggers": ["zhong_hong_reborn"],
+  "config_flow": true
 }

@@ -5,10 +5,12 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+from . import async_setup_config_entry
 from .hub import ZhongHongGateway
 from .hvac import HVAC as ZhongHongHVAC
 
 from homeassistant.components.climate import (
+    DOMAIN as ENTITY_DOMAIN,
     ATTR_HVAC_MODE,
     PLATFORM_SCHEMA,
     ClimateEntity,
@@ -65,10 +67,10 @@ MODE_TO_STATE = {
 }
 
 
-def setup_platform(
+def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
-    add_entities: AddEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up the ZhongHong HVAC platform."""
@@ -107,13 +109,17 @@ def setup_platform(
     async_dispatcher_connect(hass, SIGNAL_DEVICE_ADDED, startup)
 
     # add devices after SIGNAL_DEVICE_SETTED_UP event is listened
-    add_entities(devices)
+    async_add_entities(devices, update_before_add=True)
 
     def stop_listen(event):
         """Stop ZhongHongHub socket."""
         hub.stop_listen()
 
-    hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP, stop_listen)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_listen)
+
+
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    await async_setup_config_entry(hass, config_entry, async_setup_platform, async_add_entities, ENTITY_DOMAIN)
 
 
 class ZhongHongClimate(ClimateEntity):
