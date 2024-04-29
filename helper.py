@@ -2,6 +2,7 @@ import copy
 import logging
 import socket
 import struct
+from typing import Any, Generator
 
 from .protocol import (AcData, AcOnline, AcStatus, ChecksumError, CtlStatus,
                        FuncCode, Header, AcAddr)
@@ -105,6 +106,6 @@ def parse_data(data_frame):
     return ac_data
 
 
-def get_ac_data(data: bytes) -> AcData:
+def get_ac_data(data: bytes) -> Generator[AcData, Any, Any]:
     for data_frame in get_data_frame(data):
         yield parse_data(data_frame)
