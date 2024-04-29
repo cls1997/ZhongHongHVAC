@@ -50,6 +50,7 @@ class StatusOperation(enum.Enum):
 
 
 class StatusFanMode(enum.Enum):
+    AUTO = 0x00
     HIGH = 0x01
     MID = 0x02
     LOW = 0x04
